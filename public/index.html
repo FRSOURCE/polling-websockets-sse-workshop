@@ -40,7 +40,7 @@
 
     const pollMessages = async () => {
       await fetchMessages();
-      setTimeout(pollMessages, 3000);
+      pollMessages();
     };
 
     const postMessage = (content) =>
@@ -49,7 +49,6 @@
     document.querySelector('#new-message-form').addEventListener('submit', async function (e) {
       e.preventDefault();
       await postMessage(this.elements.message.value);
-      await fetchMessages();
       this.elements.message.value = '';
     });
   
