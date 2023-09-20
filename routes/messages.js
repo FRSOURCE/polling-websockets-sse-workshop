@@ -1,24 +1,37 @@
 const express = require('express');
 const router = express.Router();
+const EventEmitter = require('events');
+
 const messages = [];
+const messageEmitter = new EventEmitter();
 
 const findMessagesSince = (since) => {
   const sinceIndex = messages.findIndex(({ created }) => created === since);
   return messages.slice(sinceIndex + 1);
 };
 
-router.get('/', function(req, res, next) {
-  const { since } = req.query;
-  if (since) {
-    const response = findMessagesSince(since);
-    if (response.length) res.json(response);
-    else res.sendStatus(304);
-  } else res.json(messages);
-});
+router.ws('/', function(ws, req) {
+  let since;
 
-router.post('/', function(req, res, next) {
-  messages.push({ content: req.body.content, created: new Date().toISOString() });
-  res.sendStatus(201);
+  const onNewMessage = () => {
+    const newMessages = since ? findMessagesSince(since) : messages;
+    if (!newMessages.length) return;
+    since = messages[messages.length - 1].created;
+
+    ws.send(JSON.stringify(newMessages));
+  };
+
+  onNewMessage();
+
+  messageEmitter.on('new-message', onNewMessage);
+  ws.on('message', (data) => {
+    const { content } = JSON.parse(data);
+    messages.push({ content, created: new Date().toISOString() });
+    messageEmitter.emit('new-message');
+  });
+  ws.on('close', () => {
+    messageEmitter.removeListener('new-message', onNewMessage);
+  });
 });
 
 module.exports = router;

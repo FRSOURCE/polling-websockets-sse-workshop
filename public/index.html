@@ -16,7 +16,8 @@
 
   <script>
     const chatBox = document.querySelector('.chat');
-    let lastRenderedMessageDate;
+
+    const connection = new WebSocket('ws://localhost:3000/messages');
 
     const updateChatBox = (messages) => {
       let newMessagesListHTML = '';
@@ -27,33 +28,18 @@
       chatBox.innerHTML += newMessagesListHTML;
     };
 
-    const fetchMessages = async () => {
-      const searchParams = lastRenderedMessageDate ? new URLSearchParams({ since: lastRenderedMessageDate }) : '';
-      const res = await fetch('/messages?' + searchParams);
-      if (res.status === 304) return;
-      const messages = await res.json();
-
+    connection.onmessage = function (message) {
+      const messages = JSON.parse(message.data);
       updateChatBox(messages);
-
-      if (messages.length) lastRenderedMessageDate = messages[messages.length - 1].created;
     };
 
-    const pollMessages = async () => {
-      await fetchMessages();
-      setTimeout(pollMessages, 3000);
-    };
-
-    const postMessage = (content) =>
-      fetch('/messages', { method: 'POST', body: JSON.stringify({ content }), headers: { 'Content-Type': 'application/json' } })
+    const postMessage = (content) => connection.send(JSON.stringify({ content }));
     
     document.querySelector('#new-message-form').addEventListener('submit', async function (e) {
       e.preventDefault();
-      await postMessage(this.elements.message.value);
-      await fetchMessages();
+      postMessage(this.elements.message.value);
       this.elements.message.value = '';
     });
-  
-    pollMessages();
   </script>
 </body>
 
