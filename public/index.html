@@ -1,0 +1,60 @@
+<html>
+
+<head>
+  <title>Express</title>
+</head>
+
+<body>
+  <h1>Express</h1>
+  <p>Welcome to Express</p>
+
+  <div class="chat"></div>
+  <form id="new-message-form">
+    <input type="text" name="message"/>
+    <button>submit</button>
+  </form>
+
+  <script>
+    const chatBox = document.querySelector('.chat');
+    let lastRenderedMessageDate;
+
+    const updateChatBox = (messages) => {
+      let newMessagesListHTML = '';
+      messages.forEach(({ created, content }) => {
+        newMessagesListHTML += `<p><i>${new Date(created).toLocaleString()}</i>&nbsp; ${content}</p>`;
+      });
+
+      chatBox.innerHTML += newMessagesListHTML;
+    };
+
+    const fetchMessages = async () => {
+      const searchParams = lastRenderedMessageDate ? new URLSearchParams({ since: lastRenderedMessageDate }) : '';
+      const res = await fetch('/messages?' + searchParams);
+      if (res.status === 304) return;
+      const messages = await res.json();
+
+      updateChatBox(messages);
+
+      if (messages.length) lastRenderedMessageDate = messages[messages.length - 1].created;
+    };
+
+    const pollMessages = async () => {
+      await fetchMessages();
+      setTimeout(pollMessages, 3000);
+    };
+
+    const postMessage = (content) =>
+      fetch('/messages', { method: 'POST', body: JSON.stringify({ content }), headers: { 'Content-Type': 'application/json' } })
+    
+    document.querySelector('#new-message-form').addEventListener('submit', async function (e) {
+      e.preventDefault();
+      await postMessage(this.elements.message.value);
+      await fetchMessages();
+      this.elements.message.value = '';
+    });
+  
+    pollMessages();
+  </script>
+</body>
+
+</html>
